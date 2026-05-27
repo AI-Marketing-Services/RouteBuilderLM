@@ -984,11 +984,6 @@ select.form-input {
           </select>
         </div>
       </div>
-
-      <!-- <div class="cc-save-row">
-        <button class="cc-save-btn" onclick="saveContactNow()">Send Me My Info →</button>
-        <span class="cc-save-status" id="ccSaveStatus"></span>
-      </div> -->
     </div>
 
     <div class="cta-section">
@@ -1061,19 +1056,18 @@ const state = {
   maxVisited: 1,
   name: '',
   paywallUnlocked: false,
-  selectedProps: [],           // e.g. ['mid-rise-apartment', 'gym']
-  locConfigs: {},              // { propVal: { mode:'default'|'custom', count, units, machine } }
+  selectedProps: [],
+  locConfigs: {},
   density: null,
-  goalRank: [],                // ordered array of goal keys (max 2)
+  goalRank: [],
   desiredProfit: null,
-  recommendedMachines: null,   // computed from goals + desired profit (display only)
+  recommendedMachines: null,
   projection: null,
-  // Optional contact (captured on page 2, all optional)
   email: '',
   phone: '',
   city: '',
   reason: '',
-  _lastContactSnapshot: '',    // used to skip no-op saves
+  _lastContactSnapshot: '',
 };
 
 const TOTAL_STEPS = 2;
@@ -1094,7 +1088,6 @@ const PROPERTY_DEFS = [
   {val:'other',               icon:'🏪', name:'Other'},
 ];
 
-// Maps tile val → display name used in lookup table keys.
 const PROP_NAME_MAP = {
   'apartment':'Apartment',
   'office-gov':'Office/Gov',
@@ -1106,9 +1099,6 @@ const PROP_NAME_MAP = {
   'other':'Other',
 };
 
-// Unit label per bucket. Apartments use unit count (most common across the
-// 4 sub-types); Office/Gov & Manufacturing/Warehouse use employee counts;
-// the rest use daily visitors.
 const UNIT_TYPE_MAP = {
   'apartment':                'units',
   'office-gov':               'employees',
@@ -1120,10 +1110,6 @@ const UNIT_TYPE_MAP = {
   'other':                    'daily visitors',
 };
 
-// Weighted-avg denominators per consolidated bucket (weighted by N locations
-// from Shared Denominators tab). Apartments mix unit-count + daily-visitors
-// in source data; combined avg leans toward unit count since that's the
-// dominant denominator type for that bucket.
 const DEFAULT_DENOM = {
   'apartment':                281,
   'office-gov':               155,
@@ -1150,28 +1136,21 @@ const MACH_NAME_MAP = {
   'micromarket':'Micromarket','other':'Other',
 };
 
-// Recommended machine per bucket — DATA-DRIVEN.
-// Highest weighted-avg $/machine/unit per (Bucket × Machine), with:
-//   - "Other" excluded
-//   - Min 3 locations preferred (falls back to absolute-best when data thin)
 const DEFAULT_MACHINE_BY_PROP = {
-  'apartment':                'bulk-snacks-frozen', // 4 locs · $7.79/unit
-  'office-gov':               'micromarket',        // 5 locs · $11.97/unit
-  'gym':                      'drink-machine',      // 17 locs · $5.19/unit
-  'manufacturing-warehouse':  'drink-machine',      // 20 locs · $15.51/unit
-  'medical':                  'drink-machine',      // 8 locs · $4.17/unit
-  'school':                   'drink-machine',      // 12 locs · $6.38/unit
-  'hotel':                    'snacks-drinks-ai',   // 1 loc (fallback) · $9.00/unit
-  'other':                    'micromarket',        // 4 locs · $13.73/unit
+  'apartment':                'bulk-snacks-frozen',
+  'office-gov':               'micromarket',
+  'gym':                      'drink-machine',
+  'manufacturing-warehouse':  'drink-machine',
+  'medical':                  'drink-machine',
+  'school':                   'drink-machine',
+  'hotel':                    'snacks-drinks-ai',
+  'other':                    'micromarket',
 };
 
 const DENSITY_NAME_MAP = {
   'major-city':'Major City','city':'City (<1M Population)','suburban':'Suburban','rural':'Rural',
 };
 
-// Bucket × Density × Machine — weighted-avg $/machine/unit recomputed from
-// raw Route Group Analysis data after consolidation. Used by lookupBlendedDPM
-// when the user picks a specific machine type.
 const ROUTE_BLENDED_DPM = {
   'Apartment|City (<1M Population)|Bulk Snacks + Frozen Meals':8.25,'Apartment|City (<1M Population)|Drink Machine':6.67,'Apartment|City (<1M Population)|Freezer':8.36,'Apartment|City (<1M Population)|Micromarket':6.52,'Apartment|City (<1M Population)|Other':6.09,'Apartment|City (<1M Population)|Snacks + Drinks (AI)':7.80,
   'Apartment|Major City|Bulk Snacks + Frozen Meals':7.33,'Apartment|Major City|Drink Machine':6.85,'Apartment|Major City|Micromarket':4.62,'Apartment|Major City|Other':7.77,'Apartment|Major City|Snacks + Drinks (AI)':6.05,
@@ -1200,8 +1179,6 @@ const ROUTE_BLENDED_DPM = {
   'School|City (<1M Population)|Bulk Snacks + Frozen Meals':9.90,'School|City (<1M Population)|Drink Machine':6.38,'School|City (<1M Population)|Other':8.42,'School|City (<1M Population)|Snacks + Drinks (AI)':6.64,
 };
 
-// Bucket × Density fallback (avg across machines, weighted by N locations).
-// Used when no specific Bucket × Density × Machine combo exists.
 const PROP_LOC_AVG_DPM = {
   'Apartment|City (<1M Population)':7.25,'Apartment|Major City':6.22,'Apartment|Rural':6.00,'Apartment|Suburban':3.60,
   'Gym|City (<1M Population)':5.39,'Gym|Major City':4.98,'Gym|Rural':6.38,'Gym|Suburban':4.95,
@@ -1249,11 +1226,6 @@ const REASON_LABELS = {
 // ══════════════════════════════════
 //  RECOMMENDED-MACHINES MATH
 // ══════════════════════════════════
-// Same logic as the original SLFU form:
-//  - Each goal maps to a typical machine count (small route → big route)
-//  - Profit goal maps to count via PROFIT_PER_MACHINE
-//  - When both are set, average them; otherwise use whichever exists.
-//  - #1 goal weighs more than #2 (RANK_WEIGHTS).
 const PROFIT_PER_MACHINE = 950;
 const GOAL_MACHINE_MAP = {
   supplemental: 3,
@@ -1264,6 +1236,16 @@ const GOAL_MACHINE_MAP = {
 const RANK_WEIGHTS = [3, 2];
 
 // ══════════════════════════════════
+//  DEBOUNCE HELPER
+// ══════════════════════════════════
+// Used to throttle sheet sends triggered by rapid input changes (unit counts, etc.)
+const _debounceTimers = {};
+function debounce(key, fn, delay) {
+  clearTimeout(_debounceTimers[key]);
+  _debounceTimers[key] = setTimeout(fn, delay);
+}
+
+// ══════════════════════════════════
 //  INIT
 // ══════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
@@ -1271,8 +1253,6 @@ window.addEventListener('DOMContentLoaded', () => {
   buildPropertyGrid();
   populateRepInfo();
 
-  // If a shareable URL was used, restore state BEFORE firing the sheet
-  // (so we don't blank out the session). Otherwise, start fresh.
   const restored = restoreFromURL();
   if (restored) {
     setTimeout(restoreUIFromState, 60);
@@ -1335,6 +1315,7 @@ function initCalendly(attempt) {
     },
   });
 }
+
 function buildProgress() {
   const wrap = document.getElementById('progressSteps');
   STEP_LABELS.forEach((lbl, i) => {
@@ -1375,9 +1356,6 @@ function updateProgress() {
 // ══════════════════════════════════
 //  PAYWALL
 // ══════════════════════════════════
-// Trigger: fire the gate as soon as they've picked at least one property
-// tile. The gate sits in a fixed spot in the DOM — we just reveal it in
-// place rather than scrolling to it (less jarring).
 let paywallTriggered = false;
 function maybeTriggerPaywall() {
   if (paywallTriggered || state.paywallUnlocked) return;
@@ -1387,7 +1365,6 @@ function maybeTriggerPaywall() {
 }
 
 function triggerPaywall() {
-  // Kept for back-compat (validateStep1 calls this). Force-shows the gate.
   if (paywallTriggered || state.paywallUnlocked) return;
   paywallTriggered = true;
   document.getElementById('paywallGate').classList.add('visible');
@@ -1404,34 +1381,21 @@ function submitPaywall() {
   const name = nameInput.value.trim();
   const email = emailInput.value.trim();
 
-  // Validate name
-  if (!name) {
-    nameInput.classList.add('error');
-    nameInput.focus();
-    return;
-  }
-  // Validate email — simple well-formed check, not an ironclad RFC parse
+  if (!name) { nameInput.classList.add('error'); nameInput.focus(); return; }
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  if (!email || !emailOk) {
-    emailInput.classList.add('error');
-    emailInput.focus();
-    return;
-  }
+  if (!email || !emailOk) { emailInput.classList.add('error'); emailInput.focus(); return; }
 
   state.name = name;
   state.email = email;
   state.paywallUnlocked = true;
 
-  // Unlock the gated section
   document.getElementById('gatedContent').classList.remove('paywall-locked');
-  // Hide the gate
   const gate = document.getElementById('paywallGate');
   gate.style.transition = 'opacity 0.35s, transform 0.35s';
   gate.style.opacity = '0';
   gate.style.transform = 'translateY(-12px)';
   setTimeout(() => gate.style.display = 'none', 380);
 
-  // Immediately sync name + email to the sheet so the rep sees this prospect
   sendToSheet(1, 'name_captured');
 }
 
@@ -1457,7 +1421,6 @@ function toggleProp(val) {
     tile.classList.remove('selected');
   } else {
     state.selectedProps.push(val);
-    // Seed with default config
     state.locConfigs[val] = {
       mode: 'default',
       count: 1,
@@ -1469,6 +1432,8 @@ function toggleProp(val) {
   document.getElementById('propError').style.display = 'none';
   renderLocationCards();
   maybeTriggerPaywall();
+  // ── NEW: capture selection immediately ──
+  sendToSheet(1, 'prop_selected');
 }
 
 // ══════════════════════════════════
@@ -1476,10 +1441,7 @@ function toggleProp(val) {
 // ══════════════════════════════════
 function renderLocationCards() {
   const container = document.getElementById('locationCards');
-  if (state.selectedProps.length === 0) {
-    container.innerHTML = '';
-    return;
-  }
+  if (state.selectedProps.length === 0) { container.innerHTML = ''; return; }
   container.innerHTML = state.selectedProps.map(val => renderLocCard(val)).join('');
 }
 
@@ -1563,14 +1525,14 @@ function renderCustomBody(val, unitLabel, cfg, machOptions) {
 
 function setLocMode(val, mode) {
   state.locConfigs[val].mode = mode;
-  // If switching to custom, seed fields with current default values so user can tweak
   if (mode === 'custom') {
     if (!state.locConfigs[val].units) state.locConfigs[val].units = DEFAULT_DENOM[val] || 150;
     if (!state.locConfigs[val].machine) state.locConfigs[val].machine = DEFAULT_MACHINE_BY_PROP[val] || 'snacks-drinks-ai';
   }
-  // Re-render only this card
   const card = document.getElementById('loc-card-' + val);
   if (card) card.outerHTML = renderLocCard(val);
+  // ── NEW: capture mode change ──
+  sendToSheet(1, 'prop_configured');
 }
 
 function adjustLocCount(val, delta) {
@@ -1579,22 +1541,27 @@ function adjustLocCount(val, delta) {
   cfg.count = newCount;
   const el = document.getElementById('qty-val-' + val);
   if (el) el.textContent = newCount;
-  // Update the minus-button disabled state
   const card = document.getElementById('loc-card-' + val);
   if (card) {
     const minus = card.querySelector('.qty-stepper .qty-btn');
     if (minus) minus.className = 'qty-btn' + (newCount <= 1 ? ' disabled' : '');
   }
+  // ── NEW: capture count change ──
+  sendToSheet(1, 'prop_configured');
 }
 
 function updateLocUnits(val, input) {
   let digits = input.value.replace(/\D/g, '');
   if (digits) input.value = parseInt(digits).toLocaleString();
   state.locConfigs[val].units = parseInt(digits) || 0;
+  // ── NEW: debounced send so we don't fire on every keystroke ──
+  debounce('units_' + val, () => sendToSheet(1, 'prop_configured'), 800);
 }
 
 function updateLocMachine(val, machVal) {
   state.locConfigs[val].machine = machVal;
+  // ── NEW: capture machine type change ──
+  sendToSheet(1, 'prop_configured');
 }
 
 // ══════════════════════════════════
@@ -1615,12 +1582,10 @@ function selectGoal(el) {
   const goal = el.dataset.goal;
   const idx = state.goalRank.indexOf(goal);
   if (idx > -1) {
-    // Already selected → deselect
     state.goalRank.splice(idx, 1);
     el.classList.remove('selected');
   } else {
     if (state.goalRank.length >= 2) {
-      // Replace the oldest one
       const oldest = state.goalRank.shift();
       const oldCard = document.querySelector(`.goal-card[data-goal="${oldest}"]`);
       if (oldCard) oldCard.classList.remove('selected');
@@ -1628,7 +1593,6 @@ function selectGoal(el) {
     state.goalRank.push(goal);
     el.classList.add('selected');
   }
-  // Re-label ranks on selected cards
   state.goalRank.forEach((g, i) => {
     const badge = document.getElementById('gr-' + g);
     if (badge) badge.textContent = '#' + (i + 1);
@@ -1648,14 +1612,12 @@ function formatProfit(input) {
   }
 }
 
-// Recompute the recommended machine count from the current goals + profit.
-// Re-runs whenever goals change or desired-profit changes.
 function recalcMachines() {
   const numEl = document.getElementById('recMachineNum');
   const labelEl = document.getElementById('recMachineLabel');
   if (!numEl) return;
 
-  const goals = state.goalRank.slice(0, 2);  // ranked: [#1, #2]
+  const goals = state.goalRank.slice(0, 2);
   const desiredProfit = state.desiredProfit || 0;
 
   let goalBased = null;
@@ -1702,7 +1664,6 @@ function recalcMachines() {
 //  CONTACT CAPTURE (page 2 — all optional)
 // ══════════════════════════════════
 function formatPhone(input) {
-  // Light US-style formatting: (###) ###-####
   let digits = input.value.replace(/\D/g, '').slice(0, 11);
   if (digits.length > 10 && digits.charAt(0) === '1') digits = digits.slice(1);
   digits = digits.slice(0, 10);
@@ -1718,7 +1679,6 @@ function formatPhone(input) {
 }
 
 function onContactChange() {
-  // Pull current field values into state (doesn't save yet)
   state.email = document.getElementById('ccEmail').value.trim();
   state.phone = document.getElementById('ccPhone').value.trim();
   state.city = document.getElementById('ccCity').value.trim();
@@ -1729,28 +1689,21 @@ function contactSnapshot() {
   return [state.email, state.phone, state.city, state.reason].join('|');
 }
 
-// Save on blur only if something actually changed since the last save.
-// Avoids spamming the webhook with every keystroke or re-blur of empty fields.
 function saveContactIfChanged() {
   onContactChange();
   const snap = contactSnapshot();
   if (snap === state._lastContactSnapshot) return;
-  if (!snap.replace(/\|/g, '')) return;  // everything blank — skip
+  if (!snap.replace(/\|/g, '')) return;
   state._lastContactSnapshot = snap;
   showContactStatus('saving');
   sendToSheet(2, 'contact_updated');
-  // Give the fetch a sec and then flip to saved
   setTimeout(() => showContactStatus('saved'), 600);
 }
 
-// Explicit "Send Me My Info" button — always fires, even if unchanged.
 function saveContactNow() {
   onContactChange();
   const snap = contactSnapshot();
-  if (!snap.replace(/\|/g, '')) {
-    showContactStatus('empty');
-    return;
-  }
+  if (!snap.replace(/\|/g, '')) { showContactStatus('empty'); return; }
   state._lastContactSnapshot = snap;
   showContactStatus('saving');
   sendToSheet(2, 'contact_updated');
@@ -1816,32 +1769,24 @@ function jumpToStep(n) {
 }
 
 function validateStep1() {
-  // 1. Require at least one selected property
   if (state.selectedProps.length === 0) {
     document.getElementById('propError').style.display = 'block';
     document.getElementById('propertyGrid').scrollIntoView({ behavior: 'smooth', block: 'center' });
     return false;
   }
-  // 2. Require paywall unlocked (name captured)
-  if (!state.paywallUnlocked) {
-    triggerPaywall();
-    return false;
-  }
-  // 3. Require density
+  if (!state.paywallUnlocked) { triggerPaywall(); return false; }
   if (!state.density) {
     const err = document.getElementById('densityError');
     err.style.display = 'block';
     err.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return false;
   }
-  // 4. Require at least one goal
   if (state.goalRank.length === 0) {
     const err = document.getElementById('goalError');
     err.style.display = 'block';
     err.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return false;
   }
-  // 5. Validate custom-mode cards have units + machine filled
   for (const val of state.selectedProps) {
     const cfg = state.locConfigs[val];
     if (cfg.mode === 'custom') {
@@ -1860,7 +1805,6 @@ function validateStep1() {
 function computeProjection() {
   const $$ = v => '$' + Math.round(v).toLocaleString();
 
-  // Build placements array by expanding count per property
   const placements = [];
   state.selectedProps.forEach(val => {
     const cfg = state.locConfigs[val];
@@ -1902,9 +1846,6 @@ function computeProjection() {
   document.getElementById('monthlyProfit').textContent = $$(monthlyProfit);
   document.getElementById('yearlyProfit').textContent = $$(annualProfit);
 
-  // Total Asset Value: monthly revenue × 12 × 1.1 — typical sale multiple
-  // applied to gross annual revenue. Kept simple and stable across projection
-  // re-runs; the multiplier is intentionally a flat number for now.
   const totalAssetValue = totalMonthlyRev * 12 * 1.1;
   document.getElementById('assetValue').textContent = $$(totalAssetValue);
 
@@ -1929,8 +1870,6 @@ function computeProjection() {
     num_machines: machineCount,
   };
 
-  // Pre-fill the contact-capture email from the paywall (so they don't
-  // have to retype it). The rest of the fields stay blank.
   const ccEmailEl = document.getElementById('ccEmail');
   if (ccEmailEl && !ccEmailEl.value && state.email) {
     ccEmailEl.value = state.email;
@@ -1938,14 +1877,11 @@ function computeProjection() {
 
   sendToSheet(2, 'completed');
 
-  // Auto-send the projection summary email — only once per session.
-  // Fire-and-forget; doesn't block the UI even if it fails.
   if (state.email && !state.projectionEmailSent) {
     state.projectionEmailSent = true;
     sendProjectionEmail();
   }
 
-  // Init Calendly widget now that Step 2 is visible and name/email are known
   setTimeout(initCalendly, 300);
 }
 
@@ -2012,47 +1948,37 @@ function restoreFromURL() {
 }
 
 function restoreUIFromState() {
-  // Property tiles
   state.selectedProps.forEach(val => {
     const tile = document.querySelector(`.prop-tile[data-val="${val}"]`);
     if (tile) tile.classList.add('selected');
   });
   renderLocationCards();
 
-  // Paywall
   if (state.paywallUnlocked) {
     document.getElementById('gatedContent').classList.remove('paywall-locked');
     document.getElementById('paywallGate').style.display = 'none';
   } else {
-    // Restored a session that had props selected but didn't unlock yet —
-    // re-show the gate in place so they can finish unlocking.
     maybeTriggerPaywall();
   }
-  // Density
   if (state.density) {
     const c = document.querySelector('[data-val="' + state.density + '"]');
     if (c && c.parentElement && c.parentElement.classList.contains('cols-4')) c.classList.add('selected');
   }
-  // Goals
   state.goalRank.forEach((g, i) => {
     const card = document.querySelector(`.goal-card[data-goal="${g}"]`);
     if (card) card.classList.add('selected');
     const badge = document.getElementById('gr-' + g);
     if (badge) badge.textContent = '#' + (i + 1);
   });
-  // Desired profit
   if (state.desiredProfit) {
     const el = document.getElementById('fnDesiredProfit');
     if (el) el.value = state.desiredProfit.toLocaleString();
   }
-  // Contact fields (page 2)
   if (state.email) { const el = document.getElementById('ccEmail'); if (el) el.value = state.email; }
   if (state.phone) { const el = document.getElementById('ccPhone'); if (el) el.value = state.phone; }
   if (state.city) { const el = document.getElementById('ccCity'); if (el) el.value = state.city; }
   if (state.reason) { const el = document.getElementById('ccReason'); if (el) el.value = state.reason; }
-  // Recompute the recommended machines now that goals + profit are restored
   recalcMachines();
-  // Navigate to the step they were on
   if (state.step && state.step >= 1 && state.step <= TOTAL_STEPS) {
     state.maxVisited = Math.max(state.maxVisited || 1, state.step);
     showStep('step-' + state.step);
@@ -2064,16 +1990,12 @@ function restoreUIFromState() {
 //  GOOGLE SHEET POST
 // ══════════════════════════════════
 function sendProjectionEmail() {
-  // Sends a projection summary email via the same Apps Script webhook.
-  // Backend handles this via ?action=sendProjection (GET — keeps it a simple
-  // request with no CORS preflight; we don't read the response anyway).
   if (!SHEET_WEBHOOK_URL || SHEET_WEBHOOK_URL.indexOf('REPLACE_WITH') === 0) {
     console.log('[sendProjectionEmail stub] would send to:', state.email);
     return;
   }
   if (!state.email || !state.projection) return;
 
-  // Build a compact payload — only what the email template needs
   const placementsArray = [];
   state.selectedProps.forEach(val => {
     const cfg = state.locConfigs[val] || {};
@@ -2107,9 +2029,6 @@ function sendProjectionEmail() {
     shareable_url: generateShareableURL(),
   };
 
-  // Fire-and-forget POST. Apps Script silently ignores `Content-Type:
-  // application/json` from a no-cors fetch (browser downgrades it to text/plain),
-  // and we read e.postData.contents server-side regardless.
   fetch(SHEET_WEBHOOK_URL, {
     method: 'POST',
     mode: 'no-cors',
@@ -2119,7 +2038,6 @@ function sendProjectionEmail() {
 }
 
 function sendToSheet(stepNum, status) {
-  // Build the placements array (expanded by count)
   const placementsArray = [];
   state.selectedProps.forEach(val => {
     const cfg = state.locConfigs[val] || {};
@@ -2145,13 +2063,11 @@ function sendToSheet(stepNum, status) {
     name: state.name || '',
     sales_rep_name: SALES_REP.name || '',
 
-    // Optional contact (captured on page 2)
     email: state.email || '',
     phone: state.phone || '',
     city: state.city || '',
     reason: state.reason ? (REASON_LABELS[state.reason] || state.reason) : '',
 
-    // Selections
     selected_props: state.selectedProps.map(v => PROP_NAME_MAP[v] || v).join(', '),
     goal_1: state.goalRank[0] ? (GOAL_LABELS[state.goalRank[0]] || state.goalRank[0]) : '',
     goal_2: state.goalRank[1] ? (GOAL_LABELS[state.goalRank[1]] || state.goalRank[1]) : '',
@@ -2161,7 +2077,6 @@ function sendToSheet(stepNum, status) {
     market_density: DENSITY_NAME_MAP[state.density] || '',
     route_placements: JSON.stringify(placementsArray),
 
-    // Projection
     est_monthly_revenue: state.projection?.monthly_revenue || '',
     est_annual_revenue: state.projection?.annual_revenue || '',
     est_monthly_profit: state.projection?.monthly_profit || '',
